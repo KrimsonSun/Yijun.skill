@@ -35,19 +35,47 @@ See [SKILL.md](SKILL.md) for the full workflow.
 
 ## Status
 
-- ✅ Phase 1 (Distill + specs + prompts) — complete
-- 🚧 Phase 2 (Live2D MCP plugin + tool-calling patch) — pending
-- 🚧 Phase 3 (Monopoly plugin + Playwright eval + iteration loop) — pending
+- ✅ Skill scaffold (distill + specs + prompts + plugins + eval tests) — complete
+- ✅ Orchestrator (`iterate.sh` + bash + headless-Claude phases) — complete
+- 🚧 First end-to-end run against Emma — pending (run `iterate.sh` to do it)
 
-## How to invoke
+## How to use it
 
-From Claude Code in the `Yijun.skill` repo:
+### One-line: drive a single iteration end-to-end
+
+```bash
+bash iterate.sh \
+    --emma-path ~/dev/Emma_EmotionsAssistant \
+    --max-iters 1
+```
+
+Distill → emit → manual approve → eval → report. Output lands in `output/runs/<timestamp>/iter-1/`.
+
+### Auto-iterate up to 5 rounds — patch, re-emit, re-eval until the rubric passes
+
+```bash
+bash iterate.sh \
+    --emma-path ~/dev/Emma_EmotionsAssistant \
+    --max-iters 5
+```
+
+Each failed iteration triggers a headless Claude call that edits the smallest unit in this repo, then the next iteration tries again on a fresh Emma branch.
+
+### Dry-run — emit only, no Emma changes
+
+```bash
+bash iterate.sh --dry-run
+```
+
+See [`orchestrator/README.md`](orchestrator/README.md) for full operator manual, troubleshooting, and branch hygiene.
+
+### Or invoke from Claude Code interactively
 
 ```
 /yijun-distill
 ```
 
-(Or any phrase that matches the SKILL.md trigger conditions: "蒸馏 agent", "迭代 Emma", "加新游戏到 Emma", "Live2D MCP", "评估聊天网页".)
+(Triggers from phrases like "蒸馏 agent", "迭代 Emma", "加新游戏到 Emma", "Live2D MCP", "评估聊天网页".)
 
 ## Related repos
 
