@@ -1,0 +1,63 @@
+{
+  "id": "live2d",
+  "version": "0.1.0",
+  "description": {
+    "cn": "让大模型通过工具调用控制 Live2D 表情和动作",
+    "en": "Let the LLM trigger Live2D motions/expressions via MCP tool calls"
+  },
+  "tools": [
+    {
+      "name": "play_motion",
+      "description": "Play a named Live2D motion on Emma's avatar. Use to react emotionally — flickHead_00 for warmth/empathy, shake_00 for distress/concern, tapBody_00 for excitement/celebration, idle_00..02 for ambient, pinchIn_00/pinchOut_00 for playful pinch.",
+      "exposed_to_llm": true,
+      "json_schema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "enum": [
+              "idle_00", "idle_01", "idle_02",
+              "flickHead_00", "flickHead_01", "flickHead_02",
+              "pinchIn_00", "pinchIn_01", "pinchIn_02",
+              "pinchOut_00", "pinchOut_01", "pinchOut_02",
+              "shake_00", "shake_01", "shake_02",
+              "tapBody_00", "tapBody_01", "tapBody_02"
+            ]
+          },
+          "fade_ms": {
+            "type": "integer",
+            "default": 300,
+            "minimum": 0,
+            "maximum": 2000
+          }
+        },
+        "required": ["name"]
+      }
+    },
+    {
+      "name": "set_expression",
+      "description": "Hold a facial expression on Emma's avatar. f01=neutral resting, f02=happy/warm, f03=sad/worried, f04=surprised/wide-eyed.",
+      "exposed_to_llm": true,
+      "json_schema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "enum": ["f01", "f02", "f03", "f04"]
+          },
+          "hold_ms": {
+            "type": "integer",
+            "default": 2000,
+            "minimum": 200,
+            "maximum": 10000
+          }
+        },
+        "required": ["name"]
+      }
+    }
+  ],
+  "ws_channels": ["/ws/live2d/{conversation_id}"],
+  "frontend_patches": [
+    "frontend/src/components/Live2DViewer.jsx"
+  ]
+}

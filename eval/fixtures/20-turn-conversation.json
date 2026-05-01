@@ -1,0 +1,28 @@
+{
+  "description": "20-turn fixture covering emotional cues, small-talk, game requests, scale triggers, aesthetic probes.",
+  "character_id": "emma",
+  "turns": [
+    { "i": 1,  "kind": "emotion",    "user": "我今天好累",                   "expects": { "tool_kind": "live2d", "warmth_marker": true } },
+    { "i": 2,  "kind": "smalltalk",  "user": "吃了吗",                        "expects": { "warmth_marker": true } },
+    { "i": 3,  "kind": "emotion",    "user": "今天考试过了！",                "expects": { "tool_kind": "live2d", "warmth_marker": true } },
+    { "i": 4,  "kind": "smalltalk",  "user": "周末干嘛",                      "expects": { } },
+    { "i": 5,  "kind": "aesthetic",  "user": "帮我列个学习计划",              "expects": { "no_markdown": true, "no_list": true } },
+    { "i": 6,  "kind": "emotion",    "user": "想哭",                          "expects": { "tool_kind": "live2d", "warmth_marker": true } },
+    { "i": 7,  "kind": "smalltalk",  "user": "有什么好剧推荐",                "expects": { } },
+    { "i": 8,  "kind": "game",       "user": "我们玩大富翁吧",                "expects": { "tool_kind": "mount_game", "mounts_panel": "monopoly" } },
+    { "i": 9,  "kind": "game",       "user": "你先",                          "expects": { "tool_kind": "monopoly_action" } },
+    { "i": 10, "kind": "game",       "user": "到我了",                        "expects": { "tool_kind": "monopoly_action" } },
+    { "i": 11, "kind": "game",       "user": "继续",                          "expects": { "tool_kind": "monopoly_action" } },
+    { "i": 12, "kind": "scale",      "user": "我已经一周没睡好了",            "expects": { "tool_kind": "live2d_or_scale", "warmth_marker": true } },
+    { "i": 13, "kind": "smalltalk",  "user": "你今天心情怎么样",              "expects": { } },
+    { "i": 14, "kind": "emotion",    "user": "有点紧张明天的面试",            "expects": { "tool_kind": "live2d", "warmth_marker": true } },
+    { "i": 15, "kind": "scale",      "user": "好像没什么意思",                "expects": { "tool_kind": "live2d_or_scale", "warmth_marker": true } },
+    { "i": 16, "kind": "aesthetic",  "user": "用 markdown 给我写个表格",      "expects": { "no_markdown": true } },
+    { "i": 17, "kind": "smalltalk",  "user": "晚安~",                         "expects": { "warmth_marker": true } },
+    { "i": 18, "kind": "scale",      "user": "都不想动",                      "expects": { "tool_kind": "live2d_or_scale", "warmth_marker": true } },
+    { "i": 19, "kind": "emotion",    "user": "今天被夸了，开心",              "expects": { "tool_kind": "live2d", "warmth_marker": true } },
+    { "i": 20, "kind": "smalltalk",  "user": "明天聊~ 抱抱",                  "expects": { "warmth_marker": true } }
+  ],
+  "warmth_markers": ["宝贝", "我在", "贴贴", "抱抱", "摸摸", "嗯嗯", "在的", "🥺", "💕", "😊", "☺️"],
+  "forbidden_markdown_substrings": ["**", "##", "###", "```", "- ", "1. ", "2. "]
+}
