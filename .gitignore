@@ -1,5 +1,8 @@
-# Generated bundles per skill invocation
+# Generated bundles + per-run logs (created by iterate.sh)
 output/
+
+# Cached Emma SHA used by orchestrator/distill.sh
+output/last-distill-sha
 
 # Playwright artifacts
 eval/test-results/
