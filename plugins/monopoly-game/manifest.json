@@ -1,0 +1,22 @@
+{
+  "id": "monopoly",
+  "version": "0.1.0",
+  "display_name": { "cn": "大富翁", "en": "Monopoly" },
+  "description": {
+    "cn": "和 Emma 一起掷骰子走格子，看谁先转一圈。",
+    "en": "Roll dice with Emma — first to circle the board wins."
+  },
+  "trigger_phrases": ["大富翁", "玩大富翁", "掷骰子", "monopoly"],
+  "mount_component": "MonopolyPanel",
+  "mcp_tools": ["mount_game", "roll_dice", "move_token", "read_board", "end_turn", "end_game"],
+  "state_path": "/games/monopoly/state",
+  "min_players": 2,
+  "max_players": 2,
+  "live2d_reactions": {
+    "roll":  { "motion": "flickHead_00" },
+    "move":  { "motion": "idle_01" },
+    "win":   { "motion": "tapBody_00",  "expression": "f02" },
+    "lose":  { "motion": "shake_00",    "expression": "f03" },
+    "mount": { "motion": "flickHead_01", "expression": "f02" }
+  }
+}

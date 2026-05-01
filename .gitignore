@@ -1,0 +1,21 @@
+# Generated bundles per skill invocation
+output/
+
+# Playwright artifacts
+eval/test-results/
+eval/playwright-report/
+eval/.playwright/
+
+# Local skill cache
+.yijun-skill-cache/
+
+# IDE / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
