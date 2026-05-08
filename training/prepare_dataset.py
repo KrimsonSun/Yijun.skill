@@ -106,6 +106,11 @@ def split_long_conversation(messages: list[dict], tokenizer, max_seq_length: int
     for msg in messages:
         candidate = current + [msg]
         chat = build_chat(candidate, system_prompt)
+        if not chat:
+            # candidate is e.g. a lone leading assistant turn that build_chat strips —
+            # keep accumulating until we have a real (system + user + ...) chat.
+            current = candidate
+            continue
         text = tokenizer.apply_chat_template(chat, tokenize=False, add_generation_prompt=False)
         n = len(tokenizer(text, add_special_tokens=False)["input_ids"])
         if n > max_seq_length and current:
