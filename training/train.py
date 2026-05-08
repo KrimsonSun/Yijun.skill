@@ -19,6 +19,7 @@ from pathlib import Path
 # Unsloth must be imported before transformers/trl/peft for its monkey-patches
 # to take effect. Keep this import at the top of the file.
 from unsloth import FastLanguageModel  # noqa: I001  (intentional ordering)
+from unsloth.chat_templates import train_on_responses_only
 
 import torch
 from datasets import load_from_disk
@@ -77,7 +78,7 @@ def main() -> None:
         loftq_config=None,
     )
 
-    # --- Dataset (already tokenized + masked by prepare_dataset.py)
+    # --- Dataset has a single "text" field (rendered chat template)
     dataset = load_from_disk(str(args.dataset_dir))
     print(f"Train: {len(dataset['train'])}  Val: {len(dataset['validation'])}")
 
@@ -114,8 +115,19 @@ def main() -> None:
         args=training_args,
         max_seq_length=args.max_seq_length,
         packing=False,
-        dataset_text_field=None,  # we pass pre-tokenized input_ids/labels
+        dataset_text_field="text",
         callbacks=[EarlyStoppingCallback(early_stopping_patience=1)],
+    )
+
+    # Mask everything except assistant turns. Unsloth scans for the chat
+    # template's instruction/response markers and sets labels=-100 on every
+    # token that isn't part of an assistant response. This replaces our
+    # earlier hand-rolled token-span masking, which was buggy and caused the
+    # model to learn parts of the user side (role-confused outputs).
+    trainer = train_on_responses_only(
+        trainer,
+        instruction_part="<|im_start|>user\n",
+        response_part="<|im_start|>assistant\n",
     )
 
     trainer_stats = trainer.train()

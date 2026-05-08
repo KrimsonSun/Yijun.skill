@@ -1,13 +1,20 @@
-"""Convert finetune_clean.jsonl into a HuggingFace dataset ready for Qwen2.5 SFT.
+"""Convert finetune_clean.jsonl into a HuggingFace dataset for Qwen2.5 SFT.
+
+This is the canonical-unsloth flow: we just emit a {"text": rendered_chat}
+field. The trainer tokenizes during training, and we use unsloth's
+`train_on_responses_only` to mask user turns automatically by matching the
+chat-template's instruction/response markers. That replaces our previous
+hand-rolled token-span masking, which was responsible for role-confused
+outputs (model mimicking the user side instead of replying as Yijun).
 
 Pipeline:
-1. Load JSONL — each line is {chat, username, is_group, messages: [{role, content}, ...]}
-2. Inject the intimate-mode system prompt at the start of each conversation
-   (we train on the full intimate corpus; friend mode is enforced at inference)
-3. Apply the Qwen2.5 chat template
-4. Mask user-turn loss (we only want to learn assistant tokens — the user is not Yijun)
-5. Conversation-level 90/10 train/val split (no message-level leakage)
-6. Truncate to max_seq_length on speaker boundaries
+1. Load JSONL — each line is {chat, username, is_group, messages: [...]}
+2. Strip de-identification placeholders (?A, ?B, ?JY, ...)
+3. Conversation-level 90/10 train/val split (no message-level leakage)
+4. Split long conversations on assistant boundaries so each chunk fits in
+   max_seq_length
+5. Render each chunk with the Qwen2.5 chat template + intimate system prompt
+6. Save as a HuggingFace Dataset with a single "text" column
 
 Run:
     python training/prepare_dataset.py \
@@ -28,11 +35,10 @@ from datasets import Dataset, DatasetDict
 from transformers import AutoTokenizer
 
 SYSTEM_PROMPT_PATH = Path(__file__).parent.parent / "prompts" / "yijun_voice_intimate.md"
-IGNORE_INDEX = -100
 
 # Placeholder tokens used in finetune_clean.jsonl for de-identification (?A,
-# ?B, ?JY, etc.). They carry no semantic content — leaving them in causes the
-# model to memorize "?I" / "?JY" verbatim as part of Yijun's voice.
+# ?B, ?JY, etc.). Strip these so the model doesn't memorize them as part of
+# Yijun's voice.
 PLACEHOLDER_RE = re.compile(r"\?[A-Z]+")
 
 
@@ -63,11 +69,8 @@ def load_conversations(jsonl_path: Path) -> list[list[dict]]:
 
 
 def build_chat(messages: list[dict], system_prompt: str) -> list[dict]:
-    """Prepend system prompt; ensure roles alternate user/assistant.
-
-    Drop a leading assistant turn (no preceding user turn would mean nothing
-    to train on for the first reply — the model would learn to talk into the void).
-    """
+    """Prepend system prompt; drop a leading assistant turn so each chat
+    starts with system → user (no orphan first reply)."""
     if messages and messages[0]["role"] == "assistant":
         messages = messages[1:]
     if not messages:
@@ -75,63 +78,29 @@ def build_chat(messages: list[dict], system_prompt: str) -> list[dict]:
     return [{"role": "system", "content": system_prompt}] + messages
 
 
-def tokenize_with_assistant_mask(
-    chat: list[dict],
-    tokenizer,
-    max_seq_length: int,
-) -> dict | None:
-    """Tokenize the full chat, mask non-assistant tokens in labels.
-
-    Strategy: render the full chat once with the chat template (gets us
-    correct special tokens), then for each assistant message, render the
-    prefix-up-to-and-including-that-message and the prefix-up-to-but-not-
-    including, diff to find the assistant token span, and unmask just that
-    span in the labels.
-    """
-    full_text = tokenizer.apply_chat_template(chat, tokenize=False, add_generation_prompt=False)
-    full_ids = tokenizer(full_text, add_special_tokens=False)["input_ids"]
-    if len(full_ids) > max_seq_length:
-        return None  # caller will split
-
-    labels = [IGNORE_INDEX] * len(full_ids)
-
-    # Walk through chat building cumulative prefixes
-    for i, msg in enumerate(chat):
-        if msg["role"] != "assistant":
-            continue
-        prefix_before = tokenizer.apply_chat_template(
-            chat[:i], tokenize=False, add_generation_prompt=True
-        )
-        prefix_after = tokenizer.apply_chat_template(
-            chat[: i + 1], tokenize=False, add_generation_prompt=False
-        )
-        ids_before = tokenizer(prefix_before, add_special_tokens=False)["input_ids"]
-        ids_after = tokenizer(prefix_after, add_special_tokens=False)["input_ids"]
-        start = len(ids_before)
-        end = len(ids_after)
-        for j in range(start, min(end, len(labels))):
-            labels[j] = full_ids[j]
-
-    return {"input_ids": full_ids, "labels": labels, "attention_mask": [1] * len(full_ids)}
+def render(chat: list[dict], tokenizer) -> str:
+    return tokenizer.apply_chat_template(chat, tokenize=False, add_generation_prompt=False)
 
 
-def split_long_conversation(messages: list[dict], tokenizer, max_seq_length: int, system_prompt: str) -> list[list[dict]]:
-    """If a single conversation tokenizes longer than max_seq_length, split on
-    speaker boundaries (keeping user→assistant pairs together)."""
+def token_count(text: str, tokenizer) -> int:
+    return len(tokenizer(text, add_special_tokens=False)["input_ids"])
+
+
+def split_long_conversation(
+    messages: list[dict], tokenizer, max_seq_length: int, system_prompt: str
+) -> list[list[dict]]:
+    """Yield message-list chunks each ending on an assistant turn whose rendered
+    chat fits within max_seq_length tokens."""
     chunks: list[list[dict]] = []
     current: list[dict] = []
     for msg in messages:
         candidate = current + [msg]
         chat = build_chat(candidate, system_prompt)
         if not chat:
-            # candidate is e.g. a lone leading assistant turn that build_chat strips —
-            # keep accumulating until we have a real (system + user + ...) chat.
             current = candidate
             continue
-        text = tokenizer.apply_chat_template(chat, tokenize=False, add_generation_prompt=False)
-        n = len(tokenizer(text, add_special_tokens=False)["input_ids"])
+        n = token_count(render(chat, tokenizer), tokenizer)
         if n > max_seq_length and current:
-            # close current chunk (must end on assistant for any training signal)
             while current and current[-1]["role"] != "assistant":
                 current.pop()
             if current:
@@ -163,8 +132,6 @@ def main() -> None:
     raw_convs = load_conversations(args.jsonl)
     print(f"Loaded {len(raw_convs)} raw conversations")
 
-    # Conversation-level shuffle + split BEFORE chunking long ones,
-    # so all chunks of one conversation stay in the same split.
     rng = random.Random(args.seed)
     rng.shuffle(raw_convs)
     n_val = int(len(raw_convs) * args.val_ratio)
@@ -174,26 +141,27 @@ def main() -> None:
 
     def process(convs: list[list[dict]]) -> list[dict]:
         out: list[dict] = []
-        skipped_short = 0
+        skipped = 0
         for messages in convs:
-            chunks = split_long_conversation(messages, tokenizer, args.max_seq_length, system_prompt)
-            for chunk in chunks:
+            for chunk in split_long_conversation(
+                messages, tokenizer, args.max_seq_length, system_prompt
+            ):
                 chat = build_chat(chunk, system_prompt)
                 if not any(m["role"] == "assistant" for m in chat):
-                    skipped_short += 1
+                    skipped += 1
                     continue
-                tokenized = tokenize_with_assistant_mask(chat, tokenizer, args.max_seq_length)
-                if tokenized is None:
-                    skipped_short += 1
+                text = render(chat, tokenizer)
+                if token_count(text, tokenizer) > args.max_seq_length:
+                    skipped += 1
                     continue
-                out.append(tokenized)
-        if skipped_short:
-            print(f"  skipped {skipped_short} chunks (no assistant turn or oversize)")
+                out.append({"text": text})
+        if skipped:
+            print(f"  skipped {skipped} chunks (no assistant turn or oversize)")
         return out
 
     train_records = process(train_convs)
     val_records = process(val_convs)
-    print(f"Tokenized: {len(train_records)} train / {len(val_records)} val records")
+    print(f"Rendered: {len(train_records)} train / {len(val_records)} val records")
 
     args.out_dir.mkdir(parents=True, exist_ok=True)
     ds = DatasetDict({
@@ -203,11 +171,11 @@ def main() -> None:
     ds.save_to_disk(str(args.out_dir))
     print(f"Saved dataset to {args.out_dir}")
 
-    # Quick sanity report
-    train_assistant_tokens = sum(
-        sum(1 for x in r["labels"] if x != IGNORE_INDEX) for r in train_records
-    )
-    print(f"Train assistant-token count (loss-bearing): {train_assistant_tokens}")
+    # Sanity peek
+    sample = train_records[0]["text"]
+    print("\n=== sample[0] (first 600 chars) ===")
+    print(sample[:600])
+    print("=== /sample[0] ===\n")
 
 
 if __name__ == "__main__":
