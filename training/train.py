@@ -16,6 +16,10 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+# Unsloth must be imported before transformers/trl/peft for its monkey-patches
+# to take effect. Keep this import at the top of the file.
+from unsloth import FastLanguageModel  # noqa: I001  (intentional ordering)
+
 import torch
 from datasets import load_from_disk
 from transformers import (
@@ -23,8 +27,6 @@ from transformers import (
     TrainingArguments,
 )
 from trl import SFTTrainer
-from unsloth import FastLanguageModel
-from unsloth.chat_templates import train_on_responses_only
 
 
 def main() -> None:

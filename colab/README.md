@@ -25,18 +25,30 @@ from google.colab import drive
 drive.mount('/content/drive')
 ```
 
-### Cell 2：拉代码 + 装依赖（一次会话只跑一次）
+### Cell 2：先确认 GPU 在线
+
+```python
+!nvidia-smi
+```
+
+如果看不到 A100/T4/V100 → runtime 没切到 GPU，去 `Runtime → Change runtime type → A100` 再回来。
+
+### Cell 3：拉代码 + 装依赖（一次会话只跑一次）
 
 ```python
 !git clone https://github.com/KrimsonSun/Yijun.skill.git /content/Yijun.skill
-!pip install -q unsloth
-!pip install -q --upgrade transformers trl peft accelerate datasets bitsandbytes
+!pip install -q "unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git"
 ```
 
-> 如果 unsloth 安装失败，换成：
-> `!pip install -q "unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git"`
+> Colab 默认运行时偶尔会带 CPU-only 的 torch（错误："torch X.Y.Z+cpu" / "cannot find any torch accelerator"）。如果遇到，跑一次：
+> ```python
+> !pip uninstall -y torch torchvision torchaudio
+> !pip install -q --upgrade torch
+> !pip install -q --upgrade --force-reinstall "unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git"
+> ```
+> 然后 **Runtime → Restart session**，重跑 Cell 1（挂 Drive）+ Cell 2（GPU 检查）+ 后续训练。
 
-### Cell 3：跑训练（3B，约 2-3 分钟）
+### Cell 4：跑训练（3B，约 2-3 分钟）
 
 ```python
 !bash /content/Yijun.skill/colab/run.sh 3b
@@ -44,7 +56,7 @@ drive.mount('/content/drive')
 
 跑完后 `/content/drive/MyDrive/yijun_bot/output/yijun-3b-merged/` 就是合并好的 HF 权重，约 6 GB。
 
-### Cell 4（可选）：肉眼检查模型有没有学到你的风格
+### Cell 5（可选）：肉眼检查模型有没有学到你的风格
 
 ```python
 !python /content/Yijun.skill/colab/test_generate.py \
