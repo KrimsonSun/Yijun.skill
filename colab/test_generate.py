@@ -34,6 +34,9 @@ def main() -> None:
         default=Path("/content/Yijun.skill/prompts/yijun_voice_intimate.md"),
     )
     parser.add_argument("--max_new_tokens", type=int, default=200)
+    parser.add_argument("--temperature", type=float, default=0.85)
+    parser.add_argument("--top_p", type=float, default=0.9)
+    parser.add_argument("--repetition_penalty", type=float, default=1.05)
     args = parser.parse_args()
 
     system = args.system_prompt.read_text(encoding="utf-8").strip()
@@ -59,9 +62,9 @@ def main() -> None:
                 **inputs,
                 max_new_tokens=args.max_new_tokens,
                 do_sample=True,
-                temperature=0.85,
-                top_p=0.9,
-                repetition_penalty=1.05,
+                temperature=args.temperature,
+                top_p=args.top_p,
+                repetition_penalty=args.repetition_penalty,
                 pad_token_id=tokenizer.eos_token_id,
             )
         reply = tokenizer.decode(out[0][inputs["input_ids"].shape[-1]:], skip_special_tokens=True).strip()

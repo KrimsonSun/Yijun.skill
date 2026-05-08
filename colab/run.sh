@@ -74,7 +74,7 @@ python "$REPO_DIR/training/train.py" \
     --lora_r 8 \
     --lora_alpha 16 \
     --learning_rate 2e-4 \
-    --epochs 3 \
+    --epochs 5 \
     --save_merged_16bit
 
 # --- 4. Push artifacts to Drive ---
