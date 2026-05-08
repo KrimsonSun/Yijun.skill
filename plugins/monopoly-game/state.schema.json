@@ -1,0 +1,50 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MonopolyState",
+  "type": "object",
+  "required": ["board", "players", "turn", "started_at", "status"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["mounting", "active", "ended"]
+    },
+    "board": {
+      "type": "array",
+      "minItems": 12,
+      "items": {
+        "type": "object",
+        "required": ["name", "type"],
+        "properties": {
+          "name":  { "type": "string" },
+          "type":  { "type": "string", "enum": ["start", "property", "chance", "rest"] },
+          "owner": { "type": ["string", "null"] },
+          "price": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "players": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "type": "object",
+        "required": ["id", "display_name", "position", "money"],
+        "properties": {
+          "id":           { "type": "string", "enum": ["user", "emma"] },
+          "display_name": { "type": "string" },
+          "position":     { "type": "integer", "minimum": 0 },
+          "money":        { "type": "integer" }
+        }
+      }
+    },
+    "turn": { "type": "string", "enum": ["user", "emma"] },
+    "started_at": { "type": "string", "format": "date-time" },
+    "last_roll": {
+      "type": ["array", "null"],
+      "items": { "type": "integer", "minimum": 1, "maximum": 6 },
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "winner": { "type": ["string", "null"], "enum": ["user", "emma", null] }
+  }
+}

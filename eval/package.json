@@ -1,0 +1,14 @@
+{
+  "name": "yijun-skill-eval",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Playwright + rubric harness for the yijun-distill skill. Runs the 20-turn fixture against Emma's chat web and writes eval-report.md.",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.45.0"
+  }
+}
