@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import json
 import random
+import re
 from pathlib import Path
 
 from datasets import Dataset, DatasetDict
@@ -28,6 +29,15 @@ from transformers import AutoTokenizer
 
 SYSTEM_PROMPT_PATH = Path(__file__).parent.parent / "prompts" / "yijun_voice_intimate.md"
 IGNORE_INDEX = -100
+
+# Placeholder tokens used in finetune_clean.jsonl for de-identification (?A,
+# ?B, ?JY, etc.). They carry no semantic content — leaving them in causes the
+# model to memorize "?I" / "?JY" verbatim as part of Yijun's voice.
+PLACEHOLDER_RE = re.compile(r"\?[A-Z]+")
+
+
+def clean_placeholders(text: str) -> str:
+    return PLACEHOLDER_RE.sub("", text).strip()
 
 
 def load_conversations(jsonl_path: Path) -> list[list[dict]]:
@@ -41,7 +51,14 @@ def load_conversations(jsonl_path: Path) -> list[list[dict]]:
             msgs = obj.get("messages", [])
             if not msgs:
                 continue
-            convs.append(msgs)
+            cleaned: list[dict] = []
+            for m in msgs:
+                content = clean_placeholders(m.get("content", ""))
+                if not content:
+                    continue
+                cleaned.append({"role": m["role"], "content": content})
+            if cleaned:
+                convs.append(cleaned)
     return convs
 
 
