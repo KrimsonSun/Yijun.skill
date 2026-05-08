@@ -71,8 +71,8 @@ python "$REPO_DIR/training/train.py" \
     --output_dir "$OUT_DIR" \
     --per_device_batch_size 4 \
     --grad_accum_steps 4 \
-    --lora_r 8 \
-    --lora_alpha 16 \
+    --lora_r 16 \
+    --lora_alpha 32 \
     --learning_rate 2e-4 \
     --epochs 3 \
     --save_merged_16bit
