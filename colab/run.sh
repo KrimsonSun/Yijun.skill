@@ -69,8 +69,8 @@ python "$REPO_DIR/training/train.py" \
     --dataset_dir /content/sft_dataset \
     --base_model "$BASE" \
     --output_dir "$OUT_DIR" \
-    --per_device_batch_size 16 \
-    --grad_accum_steps 1 \
+    --per_device_batch_size 4 \
+    --grad_accum_steps 4 \
     --save_merged_16bit
 
 # --- 4. Push artifacts to Drive ---

@@ -42,7 +42,11 @@ def main() -> None:
     parser.add_argument("--max_seq_length", type=int, default=2048)
     parser.add_argument("--lora_r", type=int, default=8)
     parser.add_argument("--lora_alpha", type=int, default=16)
-    parser.add_argument("--lora_dropout", type=float, default=0.05)
+    # Unsloth fast LoRA fused path requires dropout = 0. Setting >0 forces a
+    # slow fallback that uses 5-10× more activation memory and causes OOM
+    # even on H100. We rely on attention-only LoRA + val-loss early stop +
+    # only 3 epochs as the over-fitting guard instead of dropout.
+    parser.add_argument("--lora_dropout", type=float, default=0.0)
     parser.add_argument("--learning_rate", type=float, default=1e-4)
     parser.add_argument("--epochs", type=int, default=3)
     parser.add_argument("--per_device_batch_size", type=int, default=4)
