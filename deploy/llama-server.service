@@ -1,0 +1,23 @@
+[Unit]
+Description=llama.cpp server (Yijun GGUF)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu
+ExecStart=/home/ubuntu/llama.cpp/build/bin/llama-server \
+    -m /home/ubuntu/models/yijun-Q4_K_M.gguf \
+    --host 127.0.0.1 \
+    --port 8080 \
+    -c 4096 \
+    -t 4 \
+    --alias yijun \
+    --no-warmup
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

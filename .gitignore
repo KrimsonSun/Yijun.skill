@@ -15,7 +15,25 @@ eval/.playwright/
 .vscode/
 *.swp
 
+# Claude Code local state
+.claude/
+
 # Node
 node_modules/
 npm-debug.log
 yarn-error.log
+
+# Source data
+source_data/
+
+# Bot runtime artifacts
+bot/.index/
+bot/__pycache__/
+**/__pycache__/
+*.pyc
+.env
+
+# Training outputs
+training/__pycache__/
+*.gguf
+output/yijun-*/

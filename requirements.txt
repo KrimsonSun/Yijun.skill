@@ -1,0 +1,17 @@
+# Bot runtime (Oracle Cloud ARM A1)
+discord.py>=2.3.0
+httpx>=0.27.0
+aiosqlite>=0.20.0
+sentence-transformers>=2.7.0
+faiss-cpu>=1.8.0
+numpy>=1.26.0
+python-dotenv>=1.0.0
+
+# Training (Kaggle/Colab; not needed on the deployment VM)
+# unsloth
+# trl>=0.9.0
+# transformers>=4.43.0
+# datasets>=2.20.0
+# peft>=0.11.0
+# accelerate>=0.30.0
+# bitsandbytes>=0.43.0
