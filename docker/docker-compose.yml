@@ -1,0 +1,92 @@
+# Three-container Yijun bot stack, fully local, no external APIs.
+#
+# Layout:
+#   docker/
+#     docker-compose.yml      (this file)
+#     Dockerfile.bot
+#     entrypoint.sh
+#     download_reasoner.sh    (one-shot helper to fetch Qwen2.5-3B-Instruct GGUF)
+#     models/
+#       yijun-7b-Q4_K_M.gguf            ← you put this here (from Colab)
+#       qwen2.5-3b-instruct-q4_k_m.gguf ← downloaded by download_reasoner.sh
+#     .env                              ← cp from .env.example, fill DISCORD_TOKEN
+#
+# Usage from the docker/ directory:
+#   bash download_reasoner.sh           # one-time, ~2GB download
+#   cp .env.example .env && vim .env    # set DISCORD_TOKEN
+#   docker compose up -d                # start everything
+#   docker compose logs -f bot          # tail the bot
+#
+# Resource budget per container (Q4_K_M, c=4096):
+#   yijun-llama  : ~5 GB (7B)
+#   reasoner     : ~2 GB (3B base)
+#   bot          : ~0.7 GB (BGE embedding + faiss + python)
+#   total        : ~7.7 GB — fits on 8 GB host but margin is thin; 16 GB safer.
+
+services:
+  yijun-llama:
+    image: ghcr.io/ggerganov/llama.cpp:server
+    container_name: yijun-llama
+    restart: unless-stopped
+    volumes:
+      - ./models:/models:ro
+    command:
+      - --model
+      - /models/yijun-7b-Q4_K_M.gguf
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "8080"
+      - -c
+      - "4096"
+      - -t
+      - "4"
+      - --alias
+      - yijun
+      - --no-warmup
+
+  reasoner:
+    image: ghcr.io/ggerganov/llama.cpp:server
+    container_name: yijun-reasoner
+    restart: unless-stopped
+    volumes:
+      - ./models:/models:ro
+    command:
+      - --model
+      - /models/qwen2.5-3b-instruct-q4_k_m.gguf
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "8081"
+      - -c
+      - "2048"
+      - -t
+      - "2"
+      - --alias
+      - reasoner
+      - --no-warmup
+
+  bot:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.bot
+    container_name: yijun-bot
+    restart: unless-stopped
+    depends_on:
+      - yijun-llama
+      - reasoner
+    env_file:
+      - .env
+    environment:
+      LLAMA_BASE_URL: http://yijun-llama:8080
+      REASONER_BASE_URL: http://reasoner:8081
+      USE_REASONER: "1"
+      DB_PATH: /data/memory.db
+      INDEX_DIR: /data/index
+      JSONL_PATH: /source_data/finetune_clean.jsonl
+    volumes:
+      - bot_data:/data
+      - ../source_data:/source_data:ro
+
+volumes:
+  bot_data:

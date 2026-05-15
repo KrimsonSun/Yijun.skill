@@ -37,3 +37,7 @@ bot/__pycache__/
 training/__pycache__/
 *.gguf
 output/yijun-*/
+
+# Docker artifacts (model files go here, never committed)
+docker/models/
+docker/.env

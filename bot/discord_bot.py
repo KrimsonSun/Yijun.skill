@@ -11,6 +11,8 @@ Pipeline per message:
 Env vars:
     DISCORD_TOKEN          required
     LLAMA_BASE_URL         default http://localhost:8080
+    REASONER_BASE_URL      default http://localhost:8081 (unused unless USE_REASONER=1)
+    USE_REASONER           default 0 — set to 1 to enable plan-then-style
     DB_PATH                default /var/lib/yijunbot/memory.db
     INDEX_DIR              default bot/.index
     ALERT_WEBHOOK_URL      optional — Discord webhook to ping Yijun when intimate mode activates
@@ -32,6 +34,7 @@ from .llm_client import LlamaClient
 from .memory import ChannelMemory
 from .mode_gate import ModeGate
 from .prompt_builder import build_messages
+from .reasoner import Reasoner
 from .retrieval import Retrieval
 from .safety_filter import post_process
 
@@ -44,6 +47,8 @@ logger = logging.getLogger("yijunbot")
 
 DISCORD_TOKEN = os.environ["DISCORD_TOKEN"]
 LLAMA_BASE_URL = os.getenv("LLAMA_BASE_URL", "http://localhost:8080")
+REASONER_BASE_URL = os.getenv("REASONER_BASE_URL", "http://localhost:8081")
+USE_REASONER = os.getenv("USE_REASONER", "0") == "1"
 DB_PATH = os.getenv("DB_PATH", "/var/lib/yijunbot/memory.db")
 INDEX_DIR = os.getenv("INDEX_DIR", "bot/.index")
 ALERT_WEBHOOK_URL = os.getenv("ALERT_WEBHOOK_URL")
@@ -76,6 +81,7 @@ class YijunBot(discord.Client):
         self.gate = ModeGate(DB_PATH)
         self.memory = ChannelMemory(DB_PATH)
         self.llm = LlamaClient(base_url=LLAMA_BASE_URL)
+        self.reasoner = Reasoner(base_url=REASONER_BASE_URL, enabled=USE_REASONER)
         self.retrieval = Retrieval(index_dir=Path(INDEX_DIR))
         self.queue: asyncio.Queue = asyncio.Queue()
         self.last_msg_ts: dict[str, float] = defaultdict(float)
@@ -155,14 +161,20 @@ class YijunBot(discord.Client):
             )
 
         history = await self.memory.recent(channel_id, n=HISTORY_TURNS)
-        messages = build_messages(
-            mode=mode,
-            user_message=text,
-            history=history,
-            retrieval=self.retrieval,
-        )
 
         async with message.channel.typing():
+            outline = await self.reasoner.plan(history, text)
+            if outline:
+                logger.info("reasoner outline: %s", outline)
+
+            messages = build_messages(
+                mode=mode,
+                user_message=text,
+                history=history,
+                retrieval=self.retrieval,
+                outline=outline,
+            )
+
             try:
                 raw = await self.llm.chat(messages, max_tokens=MAX_TOKENS)
             except Exception:  # noqa: BLE001

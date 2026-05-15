@@ -1,0 +1,32 @@
+# Build context must be the repo root (so we can copy bot/, prompts/, requirements.txt).
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# Build-time C deps for faiss-cpu, sentence-transformers etc.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python deps first (this layer caches across code changes)
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy code
+COPY bot/ ./bot/
+COPY prompts/ ./prompts/
+
+# Entrypoint builds the RAG index on first run, then starts the bot.
+COPY docker/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENV DB_PATH=/data/memory.db \
+    INDEX_DIR=/data/index \
+    LLAMA_BASE_URL=http://yijun-llama:8080 \
+    REASONER_BASE_URL=http://reasoner:8081 \
+    USE_REASONER=1
+
+VOLUME ["/data"]
+
+CMD ["/entrypoint.sh"]
